@@ -5,7 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Online Currency Converter</title>
 
-    <link rel="stylesheet" href="style.css" />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
   </head>
   <body>
     <div class="phone-screen">
@@ -54,27 +57,27 @@
       const amountDisplay = document.getElementById("amountDisplay");
       const resultDisplay = document.getElementById("resultDisplay");
 
-      // STEP 1: Automatically fetch all global currencies from Python and populate dropdown selections
       async function loadAllCurrencies() {
         try {
-          const response = await fetch("/get-supported-countries");
+          const response = await fetch("/get_rates/USD");
           const data = await response.json();
 
-          if (data.supported_codes) {
-            data.supported_codes.forEach(([code, name]) => {
-              let option1 = new Option(`${code} - ${name}`, code);
-              let option2 = new Option(`${code} - ${name}`, code);
+          if (data.rates) {
+            Object.keys(data.rates).forEach((code) => {
+              let option1 = new Option(code, code);
+              let option2 = new Option(code, code);
+
               fromSelect.add(option1);
               toSelect.add(option2);
             });
 
-            // Defaults
             fromSelect.value = "NGN";
             toSelect.value = "USD";
+
             updateConversion();
           }
         } catch (e) {
-          console.error("Could not fetch global country lists.", e);
+          console.error("Could not fetch currencies:", e);
         }
       }
 
@@ -94,7 +97,6 @@
         updateConversion();
       }
 
-      // STEP 3: Execute conversion calculation via server rates
       async function updateConversion() {
         const from = fromSelect.value;
         const to = toSelect.value;
@@ -106,17 +108,22 @@
         }
 
         try {
-          const response = await fetch(`/get-rates/${from}`);
+          const response = await fetch(`/get_rates/${from}`);
           const data = await response.json();
 
-          if (data.conversion_rates && data.conversion_rates[to]) {
-            const rate = data.conversion_rates[to];
+          if (data.rates && data.rates[to]) {
+            const rate = data.rates[to];
+
             resultDisplay.innerText = (amount * rate).toLocaleString(
               undefined,
-              { minimumFractionDigits: 2, maximumFractionDigits: 4 },
+              {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 4,
+              },
             );
           }
         } catch (error) {
+          console.error(error);
           resultDisplay.innerText = "Error";
         }
       }
