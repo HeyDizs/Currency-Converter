@@ -1,138 +1,96 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Online Currency Converter</title>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Live exchange rates at your fingertips. Currency converter with real-time rates.">
+  <title>Currency Converter</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
 
-    <link
-      rel="stylesheet"
-      href="{{ url_for('static', filename='style.css') }}"
-    />
-  </head>
-  <body>
-    <div class="phone-screen">
-      <div>
-        <div class="header">← Online Currency Converter</div>
+  <header class="site-header">
+    <div class="logo">
+      <span>Swapp</span>
+    </div>
+  </header>
 
-        <!-- Base currency input -->
-        <div class="currency-row">
-          <select id="fromCurrency"></select>
-          <div id="amountDisplay" class="amount-display active-amount">100</div>
-        </div>
+  <main class="hero">
 
-        <!-- Target conversion row -->
-        <div class="currency-row">
-          <select id="toCurrency"></select>
-          <div id="resultDisplay" class="amount-display">0.00</div>
-        </div>
-      </div>
+    <img class="coin-bg" src="/static/bg.png" alt="" aria-hidden="true">
 
-      <!-- On-screen Keyboard/Pinpad Layout -->
-      <div class="pinpad">
-        <button class="btn" onclick="pressKey('7')">7</button>
-        <button class="btn" onclick="pressKey('8')">8</button>
-        <button class="btn" onclick="pressKey('9')">9</button>
-        <button class="btn btn-action" onclick="pressKey('AC')">AC</button>
-
-        <button class="btn" onclick="pressKey('4')">4</button>
-        <button class="btn" onclick="pressKey('5')">5</button>
-        <button class="btn" onclick="pressKey('6')">6</button>
-
-        <button class="btn" onclick="pressKey('1')">1</button>
-        <button class="btn" onclick="pressKey('2')">2</button>
-        <button class="btn" onclick="pressKey('3')">3</button>
-        <button class="btn btn-backspace" onclick="pressKey('DEL')">⌫</button>
-
-        <button class="btn" onclick="pressKey('00')">00</button>
-        <button class="btn" onclick="pressKey('0')">0</button>
-        <button class="btn" onclick="pressKey('.')">.</button>
-      </div>
+    <div class="hero-copy">
+      <!-- <p class="eyebrow">Live exchange rates at your fingertips</p> -->
+      <h1>Currency converter</h1>
+      <p class="hero-desc">
+        Exchange, send, and spend with rates you'll love. Check out our live foreign exchange rates with our currency converter and see for yourself why millions of users trust us.
+      </p>
     </div>
 
-    <script>
-      let currentInput = "100";
-      const fromSelect = document.getElementById("fromCurrency");
-      const toSelect = document.getElementById("toCurrency");
-      const amountDisplay = document.getElementById("amountDisplay");
-      const resultDisplay = document.getElementById("resultDisplay");
+    <div class="card" id="converterCard">
 
-      async function loadAllCurrencies() {
-        try {
-          const response = await fetch("/get_rates/USD");
-          const data = await response.json();
+      <div class="card-block">
+        <label class="field-label" for="amountInput">Amount</label>
+        <div class="field-row">
+          <div class="currency-picker">
+            <span class="flag" id="fromFlag">🇺🇸</span>
+            <select id="fromCurrencySelect" aria-label="Base currency"></select>
+            <svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          <input
+            id="amountInput"
+            class="field-amount"
+            type="text"
+            inputmode="decimal"
+            value="1000"
+            aria-label="Amount to convert"
+          >
+        </div>
+      </div>
 
-          if (data.rates) {
-            Object.keys(data.rates).forEach((code) => {
-              let option1 = new Option(code, code);
-              let option2 = new Option(code, code);
+      <div class="card-block">
+        <span class="field-label">Converted to</span>
+        <div class="field-row">
+          <div class="currency-picker">
+            <span class="flag" id="toFlag">🇪🇺</span>
+            <select id="toCurrencySelect" aria-label="Target currency"></select>
+            <svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          <span class="field-result" id="convertedResult">—</span>
+        </div>
+      </div>
 
-              fromSelect.add(option1);
-              toSelect.add(option2);
-            });
+      <div class="card-block card-meta">
+        <div class="meta-row">
+          <span class="meta-label">
+            Our current rate
+            <span class="info-icon" title="Mid-market rate">ⓘ</span>
+          </span>
+          <span class="meta-value" id="rateDisplay">—</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">
+            No fees
+            <span class="info-icon" title="No conversion fees added">ⓘ</span>
+          </span>
+          <span class="meta-value" id="feesDisplay">$0.00</span>
+        </div>
+      </div>
 
-            fromSelect.value = "NGN";
-            toSelect.value = "USD";
+      <button class="cta-btn" id="convertBtn" type="button">Convert now</button>
 
-            updateConversion();
-          }
-        } catch (e) {
-          console.error("Could not fetch currencies:", e);
-        }
-      }
+      <div class="card-status hidden" id="statusBanner" role="status">
+        <span class="spinner"></span>
+        <span id="statusMessage">Fetching rates…</span>
+      </div>
 
-      // STEP 2: Logic capturing whenever custom layout buttons are pressed
-      function pressKey(key) {
-        if (key === "AC") {
-          currentInput = "0";
-        } else if (key === "DEL") {
-          currentInput = currentInput.slice(0, -1);
-          if (currentInput === "") currentInput = "0";
-        } else {
-          if (currentInput === "0" && key !== ".") currentInput = "";
-          if (key === "." && currentInput.includes(".")) return; // Stop double dots
-          currentInput += key;
-        }
-        amountDisplay.innerText = currentInput;
-        updateConversion();
-      }
+    </div>
 
-      async function updateConversion() {
-        const from = fromSelect.value;
-        const to = toSelect.value;
-        const amount = parseFloat(currentInput) || 0;
+  </main>
 
-        if (amount === 0) {
-          resultDisplay.innerText = "0.00";
-          return;
-        }
-
-        try {
-          const response = await fetch(`/get_rates/${from}`);
-          const data = await response.json();
-
-          if (data.rates && data.rates[to]) {
-            const rate = data.rates[to];
-
-            resultDisplay.innerText = (amount * rate).toLocaleString(
-              undefined,
-              {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 4,
-              },
-            );
-          }
-        } catch (error) {
-          console.error(error);
-          resultDisplay.innerText = "Error";
-        }
-      }
-
-      fromSelect.addEventListener("change", updateConversion);
-      toSelect.addEventListener("change", updateConversion);
-
-      // Bootstrap app start
-      loadAllCurrencies();
-    </script>
-  </body>
+  <script src="/static/js/app.js"></script>
+</body>
 </html>
