@@ -1,43 +1,65 @@
-const CURRENCIES = {
-  USD: { name: 'US Dollar',          symbol: '$',    flag: '🇺🇸' },
-  EUR: { name: 'Euro',               symbol: '€',    flag: '🇪🇺' },
-  GBP: { name: 'British Pound',      symbol: '£',    flag: '🇬🇧' },
-  JPY: { name: 'Japanese Yen',       symbol: '¥',    flag: '🇯🇵' },
-  CAD: { name: 'Canadian Dollar',    symbol: 'CA$',  flag: '🇨🇦' },
-  AUD: { name: 'Australian Dollar',  symbol: 'A$',   flag: '🇦🇺' },
-  CHF: { name: 'Swiss Franc',        symbol: 'CHF',  flag: '🇨🇭' },
-  CNY: { name: 'Chinese Yuan',       symbol: 'CN¥',  flag: '🇨🇳' },
-  INR: { name: 'Indian Rupee',       symbol: '₹',    flag: '🇮🇳' },
-  BRL: { name: 'Brazilian Real',     symbol: 'R$',   flag: '🇧🇷' },
-  NGN: { name: 'Nigerian Naira',     symbol: '₦',    flag: '🇳🇬' },
-  ZAR: { name: 'S. African Rand',    symbol: 'R',    flag: '🇿🇦' },
-  SGD: { name: 'Singapore Dollar',   symbol: 'S$',   flag: '🇸🇬' },
-  HKD: { name: 'Hong Kong Dollar',   symbol: 'HK$',  flag: '🇭🇰' },
-  NZD: { name: 'New Zealand Dollar', symbol: 'NZ$',  flag: '🇳🇿' },
-  SEK: { name: 'Swedish Krona',      symbol: 'kr',   flag: '🇸🇪' },
-  KRW: { name: 'South Korean Won',   symbol: '₩',    flag: '🇰🇷' },
-  MXN: { name: 'Mexican Peso',       symbol: 'MX$',  flag: '🇲🇽' },
-  AED: { name: 'UAE Dirham',         symbol: 'AED',  flag: '🇦🇪' },
-  SAR: { name: 'Saudi Riyal',        symbol: 'SAR',  flag: '🇸🇦' },
-  TRY: { name: 'Turkish Lira',       symbol: '₺',    flag: '🇹🇷' },
-};
+let availableCurrencies = [];
+let selectedFrom = 'USD';
+let selectedTo = 'EUR';
+let activePickerTarget = 'from';
 
 const rateCache = new Map();
 
-const amountInput     = document.getElementById('amountInput');
-const fromSelect      = document.getElementById('fromCurrencySelect');
-const toSelect        = document.getElementById('toCurrencySelect');
-const fromFlag        = document.getElementById('fromFlag');
-const toFlag          = document.getElementById('toFlag');
-const convertedResult = document.getElementById('convertedResult');
-const rateDisplay     = document.getElementById('rateDisplay');
-const feesDisplay     = document.getElementById('feesDisplay');
-const convertBtn      = document.getElementById('convertBtn');
-const statusBanner    = document.getElementById('statusBanner');
-const statusMessage   = document.getElementById('statusMessage');
-const swapBtn = document.getElementById('swapBtn');
+const displayNames = (typeof Intl !== 'undefined' && Intl.DisplayNames)
+  ? new Intl.DisplayNames(['en'], { type: 'currency' })
+  : null;
 
-function sym(code) { return CURRENCIES[code]?.symbol || ''; }
+const amountInput         = document.getElementById('amountInput');
+const fromCurrencyBtn     = document.getElementById('fromCurrencyBtn');
+const toCurrencyBtn       = document.getElementById('toCurrencyBtn');
+const fromFlag            = document.getElementById('fromFlag');
+const toFlag              = document.getElementById('toFlag');
+const fromCode            = document.getElementById('fromCode');
+const toCode              = document.getElementById('toCode');
+const convertedResult     = document.getElementById('convertedResult');
+const rateDisplay         = document.getElementById('rateDisplay');
+const feesDisplay         = document.getElementById('feesDisplay');
+const convertBtn          = document.getElementById('convertBtn');
+const statusBanner        = document.getElementById('statusBanner');
+const statusMessage       = document.getElementById('statusMessage');
+
+const currencyModal       = document.getElementById('currencyModal');
+const modalCloseBtn       = document.getElementById('modalCloseBtn');
+const currencySearchInput = document.getElementById('currencySearchInput');
+const currencyList        = document.getElementById('currencyList');
+
+function getCurrencyName(code) {
+  if (displayNames) {
+    try {
+      const name = displayNames.of(code);
+      if (name && name !== code) return name;
+    } catch (e) {}
+  }
+  return code;
+}
+
+function getFlag(code) {
+  if (code === 'EUR') return '🇪🇺';
+  if (code === 'BTC') return '₿';
+  if (code === 'XAU') return '🥇';
+  if (code === 'XAG') return '🥈';
+  const countryCode = code.slice(0, 2).toUpperCase();
+  if (countryCode.length !== 2) return '🌐';
+  return countryCode
+    .split('')
+    .map(c => String.fromCodePoint(c.charCodeAt(0) + 127397))
+    .join('');
+}
+
+function sym(code) {
+  try {
+    const parts = new Intl.NumberFormat('en-US', { style: 'currency', currency: code }).formatToParts(1);
+    const currPart = parts.find(p => p.type === 'currency');
+    return currPart ? currPart.value : code;
+  } catch (e) {
+    return code;
+  }
+}
 
 function formatAmount(value, code) {
   const noDecimals = code === 'JPY' || code === 'KRW';
@@ -61,54 +83,36 @@ function showStatus(msg, isError = false) {
 
 function hideStatus() { statusBanner.classList.add('hidden'); }
 
-function populateSelects() {
-  const codes = Object.keys(CURRENCIES).sort();
-  const opts = (selected) =>
-    codes.map(c =>
-      `<option value="${c}"${c === selected ? ' selected' : ''}>${c}</option>`
-    ).join('');
+function updatePickerUI() {
+  fromFlag.textContent = getFlag(selectedFrom);
+  fromCode.textContent = selectedFrom;
 
-  fromSelect.innerHTML = opts('USD');
-  toSelect.innerHTML   = opts('EUR');
-}
-
-function updateFlags() {
-  fromFlag.textContent = CURRENCIES[fromSelect.value]?.flag || '';
-  toFlag.textContent   = CURRENCIES[toSelect.value]?.flag   || '';
+  toFlag.textContent = getFlag(selectedTo);
+  toCode.textContent = selectedTo;
 }
 
 function calculate() {
-  const base   = fromSelect.value;
-  const target = toSelect.value;
-  const cached = rateCache.get(base);
   const rawVal = String(amountInput.value || '').replace(/,/g, '');
   const amount = parseFloat(rawVal);
 
   if (isNaN(amount) || amount < 0) {
-    convertedResult.textContent = `${sym(target)}0.00`;
+    convertedResult.textContent = `${sym(selectedTo)}0.00`;
     rateDisplay.textContent = '—';
     return;
   }
 
-  if (cached && cached.rates && cached.rates[target] !== undefined) {
-    const rate      = cached.rates[target];
+  const cached = rateCache.get(selectedFrom);
+  if (cached && cached.rates && cached.rates[selectedTo] !== undefined) {
+    const rate      = cached.rates[selectedTo];
     const converted = amount * rate;
 
-    convertedResult.textContent = `${sym(target)}${formatAmount(converted, target)}`;
-    rateDisplay.textContent     = `${sym(base)}1 = ${sym(target)}${formatRate(rate)}`;
-    feesDisplay.textContent     = `${sym(base)}0.00`;
+    convertedResult.textContent = `${sym(selectedTo)}${formatAmount(converted, selectedTo)}`;
+    rateDisplay.textContent     = `${sym(selectedFrom)}1 = ${sym(selectedTo)}${formatRate(rate)}`;
+    feesDisplay.textContent     = `${sym(selectedFrom)}0.00`;
   } else {
     convertedResult.textContent = '—';
     rateDisplay.textContent     = 'Unavailable';
   }
-}
-
-async function swapCurrencies() {
-  const temp = fromSelect.value;
-  fromSelect.value = toSelect.value;
-  toSelect.value = temp;
-  updateFlags();
-  await fetchRates(fromSelect.value);
 }
 
 async function fetchRates(base, forceRefresh = false) {
@@ -124,6 +128,11 @@ async function fetchRates(base, forceRefresh = false) {
     if (!data.rates) throw new Error(data.details || data.error || 'Invalid response');
 
     rateCache.set(base, { rates: data.rates });
+
+    if (availableCurrencies.length === 0) {
+      availableCurrencies = Object.keys(data.rates).sort();
+    }
+
     hideStatus();
     calculate();
   } catch (err) {
@@ -132,26 +141,100 @@ async function fetchRates(base, forceRefresh = false) {
   }
 }
 
+function renderModalList(query = '') {
+  const q = query.trim().toLowerCase();
+  const currentSelected = activePickerTarget === 'from' ? selectedFrom : selectedTo;
+
+  const filtered = availableCurrencies.filter(code => {
+    if (!q) return true;
+    const name = getCurrencyName(code).toLowerCase();
+    return code.toLowerCase().includes(q) || name.includes(q);
+  });
+
+  if (filtered.length === 0) {
+    currencyList.innerHTML = `<div style="padding: 1.5rem; text-align: center; color: #8a8a8e; font-size: 0.9rem;">No currencies found matching "${query}"</div>`;
+    return;
+  }
+
+  currencyList.innerHTML = filtered.map(code => {
+    const flag = getFlag(code);
+    const name = getCurrencyName(code);
+    const isSelected = code === currentSelected;
+
+    return `
+      <button type="button" class="currency-item ${isSelected ? 'selected' : ''}" data-code="${code}">
+        <div class="currency-item-left">
+          <span class="currency-item-flag">${flag}</span>
+          <div class="currency-item-info">
+            <span class="currency-item-code">${code}</span>
+            <span class="currency-item-name">${name}</span>
+          </div>
+        </div>
+        ${isSelected ? '<span class="currency-item-check">✓</span>' : ''}
+      </button>
+    `;
+  }).join('');
+}
+
+function openModal(target) {
+  activePickerTarget = target;
+  currencySearchInput.value = '';
+  renderModalList();
+  currencyModal.classList.remove('hidden');
+  setTimeout(() => currencySearchInput.focus(), 50);
+}
+
+function closeModal() {
+  currencyModal.classList.add('hidden');
+}
+
+fromCurrencyBtn.addEventListener('click', () => openModal('from'));
+toCurrencyBtn.addEventListener('click', () => openModal('to'));
+modalCloseBtn.addEventListener('click', closeModal);
+
+currencyModal.addEventListener('click', (e) => {
+  if (e.target === currencyModal) closeModal();
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !currencyModal.classList.contains('hidden')) {
+    closeModal();
+  }
+});
+
+currencySearchInput.addEventListener('input', (e) => {
+  renderModalList(e.target.value);
+});
+
+currencyList.addEventListener('click', async (e) => {
+  const itemBtn = e.target.closest('.currency-item');
+  if (!itemBtn) return;
+  const code = itemBtn.dataset.code;
+  if (!code) return;
+
+  if (activePickerTarget === 'from') {
+    selectedFrom = code;
+    updatePickerUI();
+    closeModal();
+    await fetchRates(selectedFrom);
+  } else {
+    selectedTo = code;
+    updatePickerUI();
+    closeModal();
+    calculate();
+  }
+});
+
 amountInput.addEventListener('input', calculate);
 
-swapBtn.addEventListener('click', swapCurrencies);
-
-fromSelect.addEventListener('change', async () => {
-  updateFlags();
-  await fetchRates(fromSelect.value);
-});
-
-toSelect.addEventListener('change', () => {
-  updateFlags();
-  calculate();
-});
-
 convertBtn.addEventListener('click', async () => {
-  await fetchRates(fromSelect.value, true);
+  await fetchRates(selectedFrom, true);
 });
 
 document.addEventListener('DOMContentLoaded', async () => {
-  populateSelects();
-  updateFlags();
+  updatePickerUI();
   await fetchRates('USD');
+  if (availableCurrencies.length === 0 && rateCache.has('USD')) {
+    availableCurrencies = Object.keys(rateCache.get('USD').rates).sort();
+  }
 });
