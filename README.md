@@ -123,3 +123,11 @@ The Python virtual environment (`venv/`) and environment files such as `.env` ar
 
 Do not commit passwords, API keys, tokens, or other secrets to the repository.
 
+## Environment Configuration
+
+The application currently does not require any secret environment variables to run.
+
+Environment files such as `.env` are excluded from version control through `.gitignore`.
+
+If environment variables or API keys are introduced in the future, they should be stored in a local `.env` file and must not be committed to the repository.
+
