@@ -35,6 +35,7 @@ const feesDisplay     = document.getElementById('feesDisplay');
 const convertBtn      = document.getElementById('convertBtn');
 const statusBanner    = document.getElementById('statusBanner');
 const statusMessage   = document.getElementById('statusMessage');
+const swapBtn = document.getElementById('swapBtn');
 
 function sym(code) { return CURRENCIES[code]?.symbol || ''; }
 
@@ -102,6 +103,14 @@ function calculate() {
   }
 }
 
+async function swapCurrencies() {
+  const temp = fromSelect.value;
+  fromSelect.value = toSelect.value;
+  toSelect.value = temp;
+  updateFlags();
+  await fetchRates(fromSelect.value);
+}
+
 async function fetchRates(base, forceRefresh = false) {
   if (!forceRefresh && rateCache.has(base)) {
     calculate();
@@ -124,6 +133,8 @@ async function fetchRates(base, forceRefresh = false) {
 }
 
 amountInput.addEventListener('input', calculate);
+
+swapBtn.addEventListener('click', swapCurrencies);
 
 fromSelect.addEventListener('change', async () => {
   updateFlags();

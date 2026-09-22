@@ -271,6 +271,33 @@ body {
 .cta-btn:active { background: var(--accent-active); transform: translateY(1px); }
 .cta-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 
+.swap-btn {
+  align-self: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: rotate(90deg);
+  transition: background 0.15s ease, transform 0.3s ease;
+  margin: -0.25rem 0;
+  z-index: 1;
+}
+
+.swap-btn:hover {
+  background: var(--accent);
+}
+
+.swap-btn:active {
+  transform: rotate(90deg) scale(0.9);
+}
+
 .card-status {
   display: flex;
   align-items: center;
